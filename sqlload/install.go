@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/caturseptian/go-indonesia-territory/internal/dataset"
 )
@@ -65,8 +66,12 @@ func Install(ctx context.Context, db *sql.DB, o Options) error {
 	if len(existing) > 0 && !o.Replace {
 		return fmt.Errorf("%w: %s (pakai Replace untuk memasang ulang)", ErrAlreadyInstalled, strings.Join(existing, ", "))
 	}
+	// Transaksi dibuka tanpa pembatalan otomatis: bila ctx dibatalkan, pernyataan berikutnya gagal dan rollback
+	// dijalankan sinkron oleh defer, sehingga koneksi sudah dilepas saat Install kembali (database/sql
+	// me-rollback transaksi yang konteksnya batal secara asinkron).
+	txCtx := context.WithoutCancel(ctx)
 	if spec.transactionalDDL {
-		tx, err := db.BeginTx(ctx, nil)
+		tx, err := db.BeginTx(txCtx, nil)
 		if err != nil {
 			return err
 		}
@@ -85,17 +90,12 @@ func Install(ctx context.Context, db *sql.DB, o Options) error {
 	if err := dropTables(ctx, db, spec, existing); err != nil {
 		return err
 	}
-	created := []string{}
+	var created []string // urut pembuatan; dropTables menghapus dari belakang (anak dulu)
 	cleanup := func(cause error) error {
-		names, _ := Tables(o)
-		slices.Reverse(names)
-		var drop []string
-		for _, n := range names {
-			if slices.Contains(created, n) {
-				drop = append(drop, n)
-			}
-		}
-		return errors.Join(cause, dropTables(context.WithoutCancel(ctx), db, spec, drop))
+		// Konteks pemanggil mungkin sudah dibatalkan; pembersihan tetap jalan, tetapi dibatasi waktunya.
+		cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+		return errors.Join(cause, dropTables(cctx, db, spec, created))
 	}
 	for _, stmt := range ddlStatements(spec, o) {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
@@ -105,12 +105,15 @@ func Install(ctx context.Context, db *sql.DB, o Options) error {
 			created = append(created, name)
 		}
 	}
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db.BeginTx(txCtx, nil)
 	if err != nil {
 		return cleanup(err)
 	}
 	if err := insertAll(ctx, tx, spec, o, d); err != nil {
-		return cleanup(errors.Join(err, tx.Rollback()))
+		if rerr := tx.Rollback(); rerr != nil && !errors.Is(rerr, sql.ErrTxDone) {
+			err = errors.Join(err, rerr)
+		}
+		return cleanup(err)
 	}
 	if err := tx.Commit(); err != nil {
 		return cleanup(err)

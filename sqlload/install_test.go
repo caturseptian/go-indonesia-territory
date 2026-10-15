@@ -66,10 +66,20 @@ func TestInstallMySQLDropsCreatedTablesWhenDataFails(t *testing.T) {
 		t.Fatal("galat diharapkan")
 	}
 	joined := strings.Join(f.log, "\n")
-	for _, want := range []string{"ROLLBACK", "DROP TABLE `territory_meta`", "DROP TABLE `territory_regencies`", "DROP TABLE `territory_provinces`"} {
-		if !strings.Contains(joined, want) {
-			t.Fatalf("tidak ada %q:\n%s", want, joined)
+	last := -1
+	// Anak dulu: tabel induk yang masih dirujuk FK tidak bisa dihapus.
+	for _, want := range []string{"DROP TABLE `territory_meta`", "DROP TABLE `territory_regencies`", "DROP TABLE `territory_provinces`"} {
+		i := strings.Index(joined, want)
+		if i < 0 || i < last {
+			t.Fatalf("DROP %q hilang atau urutannya salah (harus anak → induk):\n%s", want, joined)
 		}
+		last = i
+	}
+	if !strings.Contains(joined, "ROLLBACK") {
+		t.Fatalf("tidak ada ROLLBACK:\n%s", joined)
+	}
+	if strings.Contains(err.Error(), "already been committed or rolled back") {
+		t.Fatalf("galat berisi derau ErrTxDone: %v", err)
 	}
 }
 
