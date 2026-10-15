@@ -7,12 +7,17 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -40,19 +45,75 @@ func run(base, out string, check bool, compare string) error {
 	if err != nil {
 		return err
 	}
-	for name, data := range files {
-		path := filepath.Join(out, name)
-		if check {
-			cur, err := os.ReadFile(path)
-			if err != nil || !bytes.Equal(cur, data) {
-				return fmt.Errorf("%s berbeda dari API; jalankan tanpa -check", path)
-			}
-			continue
+	if check {
+		if err := checkDir(files, os.DirFS(out)); err != nil {
+			return fmt.Errorf("%s: %w; jalankan tanpa -check", out, err)
 		}
-		if err := os.WriteFile(path, data, 0o644); err != nil {
+		fmt.Println("sama")
+		return nil
+	}
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(out, name), data, 0o644); err != nil {
 			return err
 		}
 	}
 	fmt.Println("selesai")
 	return nil
+}
+
+// checkDir membandingkan hasil build dengan folder data menurut isinya: CSV dibandingkan setelah gzip dibuka dan
+// manifest tanpa sha256, karena byte gzip bisa berubah antarversi Go meski isinya sama.
+func checkDir(files map[string][]byte, cur fs.FS) error {
+	for name, want := range files {
+		got, err := fs.ReadFile(cur, name)
+		if err != nil {
+			return fmt.Errorf("%s: %w", name, err)
+		}
+		switch {
+		case strings.HasSuffix(name, ".gz"):
+			w, err1 := gunzip(want)
+			g, err2 := gunzip(got)
+			if err1 != nil || err2 != nil || !bytes.Equal(w, g) {
+				return fmt.Errorf("isi %s berbeda", name)
+			}
+		case name == "manifest.json":
+			w, err1 := withoutHashes(want)
+			g, err2 := withoutHashes(got)
+			if err1 != nil || err2 != nil || !bytes.Equal(w, g) {
+				return fmt.Errorf("%s berbeda", name)
+			}
+		default:
+			if !bytes.Equal(want, got) {
+				return fmt.Errorf("%s berbeda", name)
+			}
+		}
+	}
+	return nil
+}
+
+func gunzip(b []byte) ([]byte, error) {
+	zr, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	return io.ReadAll(zr)
+}
+
+// withoutHashes menghapus semua kunci sha256 lalu menyusun ulang JSON dengan urutan kunci tetap.
+func withoutHashes(b []byte) ([]byte, error) {
+	var v any
+	if err := json.Unmarshal(b, &v); err != nil {
+		return nil, err
+	}
+	var strip func(any)
+	strip = func(x any) {
+		if m, ok := x.(map[string]any); ok {
+			delete(m, "sha256")
+			for _, c := range m {
+				strip(c)
+			}
+		}
+	}
+	strip(v)
+	return json.Marshal(v)
 }
