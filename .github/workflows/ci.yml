@@ -20,6 +20,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
+          check-latest: true # cache runner bisa tertinggal (mis. 1.26.8 < minimum go.mod)
       - name: versi Go sesuai matrix dan >= go.mod
         run: |
           v=$(go env GOVERSION); echo "$v"
@@ -66,6 +67,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.27'
+          check-latest: true
           cache-dependency-path: integration/go.sum
       - run: go version
       - run: go vet ./...
