@@ -111,3 +111,17 @@ func TestTablesReturnsCopies(t *testing.T) {
 		t.Fatal("Tables() membocorkan slice internal")
 	}
 }
+
+func TestReadTableRejectsNegativeRowCount(t *testing.T) {
+	fsys := datasettest.Build(t, nil)
+	m, _, err := dataset.ReadManifest(fsys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := m.Files["provinces"]
+	f.Rows = -1
+	m.Files["provinces"] = f
+	if _, err := dataset.ReadTable(fsys, m, "provinces"); !errors.Is(err, dataset.ErrCorrupt) {
+		t.Fatalf("err = %v, mau ErrCorrupt (bukan panic)", err)
+	}
+}

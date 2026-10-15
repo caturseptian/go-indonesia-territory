@@ -106,6 +106,9 @@ func ReadTable(fsys fs.FS, m Manifest, name string) ([][]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: manifest tanpa tabel %s", ErrCorrupt, name)
 	}
+	if f.Rows < 0 {
+		return nil, fmt.Errorf("%w: jumlah baris %s negatif (%d)", ErrCorrupt, name, f.Rows)
+	}
 	raw, err := fs.ReadFile(fsys, f.File)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %w", ErrCorrupt, f.File, err)
