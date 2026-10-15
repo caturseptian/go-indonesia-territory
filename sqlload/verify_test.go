@@ -71,7 +71,7 @@ func TestMySQLWithoutDatabaseIsConfigError(t *testing.T) {
 			} else {
 				err = Install(context.Background(), db, o)
 			}
-			if err == nil || errors.Is(err, ErrMismatch) || !strings.Contains(err.Error(), "belum memilih database") {
+			if !errors.Is(err, ErrInvalidOptions) || errors.Is(err, ErrMismatch) || !strings.Contains(err.Error(), "belum memilih database") {
 				t.Fatalf("mau galat konfigurasi, dapat %v", err)
 			}
 		})

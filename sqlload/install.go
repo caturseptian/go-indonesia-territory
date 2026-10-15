@@ -147,7 +147,7 @@ func checkDatabase(ctx context.Context, db *sql.DB, spec dialectSpec) error {
 		return err
 	}
 	if !name.Valid || name.String == "" {
-		return errors.New("sqlload: koneksi belum memilih database; sertakan nama database di DSN")
+		return invalid("koneksi belum memilih database; sertakan nama database di DSN")
 	}
 	return nil
 }

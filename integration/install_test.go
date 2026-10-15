@@ -330,7 +330,7 @@ func TestMySQLDSNWithoutDatabase(t *testing.T) {
 			db := open(t, target{tg.name, tg.driver, dsn, tg.dialect})
 			o := sqlload.Options{Dialect: sqlload.MySQL, Level: sqlload.Province}
 			for name, err := range map[string]error{"Verify": sqlload.Verify(context.Background(), db, o), "Install": sqlload.Install(context.Background(), db, o)} {
-				if err == nil || errors.Is(err, sqlload.ErrMismatch) || !strings.Contains(err.Error(), "belum memilih database") {
+				if !errors.Is(err, sqlload.ErrInvalidOptions) || errors.Is(err, sqlload.ErrMismatch) || !strings.Contains(err.Error(), "belum memilih database") {
 					t.Fatalf("%s: mau galat konfigurasi, dapat %v", name, err)
 				}
 			}
