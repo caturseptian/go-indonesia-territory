@@ -49,7 +49,8 @@ var (
 	ErrInvalidOptions = errors.New("sqlload: opsi tidak sah")
 	// ErrAlreadyInstalled: Install menemukan tabel ber-prefix yang sudah ada dan Replace false.
 	ErrAlreadyInstalled = errors.New("sqlload: tabel sudah ada")
-	// ErrMismatch: Verify menemukan jumlah baris atau sampel yang berbeda dari data tertanam.
+	// ErrMismatch: Verify menemukan tabel belum (lengkap) terpasang, meta kosong/berbeda, atau jumlah baris/sampel
+	// yang berbeda dari data tertanam.
 	ErrMismatch = errors.New("sqlload: isi database tidak cocok dengan data tertanam")
 )
 
