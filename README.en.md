@@ -61,6 +61,8 @@ ddl, _ := sqlload.DDL(opts)            // or take the SQL for your own migration
 - MySQL/MariaDB: the DSN must name a database (`.../db_name`); without one, Install and Verify fail with a
   configuration error. Tables are looked up in the active schema (`current_schema()` on PostgreSQL, `DATABASE()` on
   MySQL, the main SQLite database); tables in other `search_path` schemas or in TEMP/ATTACHed databases do not count.
+  The configuration error matches `errors.Is(err, sqlload.ErrInvalidOptions)`. Do not switch databases per connection
+  (`USE`) within the same pool.
 - Existing tables are never overwritten (`ErrAlreadyInstalled`) unless `Replace: true`. `Replace` drops **every**
   schema table with that prefix, whatever `Level`/`With` you chose, then installs again. On MySQL/MariaDB the drop
   commits immediately, so if the reinstall fails the old tables are already gone.

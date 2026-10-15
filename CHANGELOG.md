@@ -5,8 +5,8 @@
 - `sqlload.Verify`: database yang tabelnya belum (lengkap) terpasang atau tabel meta-nya kosong kini menghasilkan
   `ErrMismatch` ("tabel belum terpasang: …" / "meta … tidak ada"), bukan galat driver mentah, sehingga bisa dikenali
   dengan `errors.Is`. Verify hanya memeriksa tabel yang dipilih Options.
-- `sqlload.Install`/`Verify`: koneksi MySQL/MariaDB tanpa database terpilih ditolak dengan galat konfigurasi yang jelas,
-  bukan dianggap "tabel belum ada".
+- `sqlload.Install`/`Verify`: koneksi MySQL/MariaDB tanpa database terpilih ditolak dengan galat konfigurasi yang jelas
+  (`ErrInvalidOptions`), bukan dianggap "tabel belum ada".
 - Godoc `Parse` menyebut bahwa kode pulau ditolak `ErrInvalidCode` dan dicari dengan `IslandByCode`.
 - Fungsi salin internal dioper secara eksplisit; staticcheck bersih dan kini dijalankan di CI.
 

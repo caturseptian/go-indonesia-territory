@@ -62,7 +62,8 @@ ddl, _ := sqlload.DDL(opts)            // atau ambil SQL-nya untuk migrasi sendi
   apa adanya.
 - MySQL/MariaDB: DSN harus menyebut nama database (`.../nama_db`); tanpa itu Install dan Verify menolak dengan galat
   konfigurasi. Tabel dicari di skema aktif (`current_schema()` PostgreSQL, `DATABASE()` MySQL, database utama SQLite);
-  tabel di skema lain pada `search_path` atau di database TEMP/ATTACH tidak dihitung.
+  tabel di skema lain pada `search_path` atau di database TEMP/ATTACH tidak dihitung. Galat konfigurasi ini dikenali
+  dengan `errors.Is(err, sqlload.ErrInvalidOptions)`. Jangan mengganti database per koneksi (`USE`) pada pool yang sama.
 - Tabel yang sudah ada tidak ditimpa (`ErrAlreadyInstalled`) kecuali `Replace: true`. `Replace` menghapus **semua**
   tabel skema ber-prefix tersebut, apa pun `Level`/`With` yang dipilih, lalu memasang ulang. Di MySQL/MariaDB
   penghapusan itu langsung di-commit, jadi bila pemasangan ulang gagal, tabel lama sudah tidak ada.
