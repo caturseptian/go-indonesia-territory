@@ -57,8 +57,12 @@ ddl, _ := sqlload.DDL(opts)            // atau ambil SQL-nya untuk migrasi sendi
 - Dialek: `sqlload.Postgres`, `sqlload.MySQL` (juga MariaDB), `sqlload.SQLite`.
 - Semua nilai dikirim sebagai parameter; satu-satunya identifier yang bisa diatur adalah `Prefix`
   (`^[a-z][a-z0-9_]{0,30}$`).
-- `Verify` mengembalikan `ErrMismatch` bila isi berbeda **atau** tabel belum (lengkap) terpasang, jadi
-  `errors.Is(err, sqlload.ErrMismatch)` cukup untuk memutuskan pemasangan ulang.
+- `Verify` mengembalikan `ErrMismatch` bila isi berbeda, tabel belum (lengkap) terpasang, atau tabel meta kosong, jadi
+  `errors.Is(err, sqlload.ErrMismatch)` cukup untuk memutuskan pemasangan ulang. Galat koneksi/izin tetap dikembalikan
+  apa adanya.
+- MySQL/MariaDB: DSN harus menyebut nama database (`.../nama_db`); tanpa itu Install dan Verify menolak dengan galat
+  konfigurasi. Tabel dicari di skema aktif (`current_schema()` PostgreSQL, `DATABASE()` MySQL, database utama SQLite);
+  tabel di skema lain pada `search_path` atau di database TEMP/ATTACH tidak dihitung.
 - Tabel yang sudah ada tidak ditimpa (`ErrAlreadyInstalled`) kecuali `Replace: true`. `Replace` menghapus **semua**
   tabel skema ber-prefix tersebut, apa pun `Level`/`With` yang dipilih, lalu memasang ulang. Di MySQL/MariaDB
   penghapusan itu langsung di-commit, jadi bila pemasangan ulang gagal, tabel lama sudah tidak ada.

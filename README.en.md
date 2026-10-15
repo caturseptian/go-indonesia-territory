@@ -55,8 +55,12 @@ ddl, _ := sqlload.DDL(opts)            // or take the SQL for your own migration
 
 - Dialects: `sqlload.Postgres`, `sqlload.MySQL` (also MariaDB), `sqlload.SQLite`.
 - Every value is sent as a parameter; the only identifier you can set is `Prefix` (`^[a-z][a-z0-9_]{0,30}$`).
-- `Verify` returns `ErrMismatch` when the contents differ **or** the tables are not (fully) installed, so
-  `errors.Is(err, sqlload.ErrMismatch)` is enough to decide on a reinstall.
+- `Verify` returns `ErrMismatch` when the contents differ, the tables are not (fully) installed, or the meta table is
+  empty, so `errors.Is(err, sqlload.ErrMismatch)` is enough to decide on a reinstall. Connection/permission errors are
+  returned as they are.
+- MySQL/MariaDB: the DSN must name a database (`.../db_name`); without one, Install and Verify fail with a
+  configuration error. Tables are looked up in the active schema (`current_schema()` on PostgreSQL, `DATABASE()` on
+  MySQL, the main SQLite database); tables in other `search_path` schemas or in TEMP/ATTACHed databases do not count.
 - Existing tables are never overwritten (`ErrAlreadyInstalled`) unless `Replace: true`. `Replace` drops **every**
   schema table with that prefix, whatever `Level`/`With` you chose, then installs again. On MySQL/MariaDB the drop
   commits immediately, so if the reinstall fails the old tables are already gone.
