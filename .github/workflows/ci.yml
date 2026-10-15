@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.26', '1.27']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go }}
+      - name: go.mod tanpa dependensi
+        run: test -z "$(grep -E '^require|^\s+[a-z].* v[0-9]' go.mod)"
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race -shuffle=on ./...
+      - name: cakupan paket akar >= 90%
+        run: |
+          pct=$(go test -cover . | grep -oE '[0-9]+(\.[0-9]+)?%' | tr -d %)
+          echo "cakupan paket akar: $pct%"
+          awk -v p="$pct" 'BEGIN { exit !(p >= 90) }'
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env: {POSTGRES_PASSWORD: rahasia, POSTGRES_DB: territory_test}
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 20
+      mysql:
+        image: mysql:8.4
+        env: {MYSQL_ALLOW_EMPTY_PASSWORD: 'yes', MYSQL_DATABASE: territory_test}
+        ports: ['3306:3306']
+        options: --health-cmd "mysqladmin ping -h127.0.0.1" --health-interval 5s --health-retries 30
+      mariadb:
+        image: mariadb:11.4
+        env: {MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 'yes', MARIADB_DATABASE: territory_test}
+        ports: ['3307:3306']
+        options: --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 5s --health-retries 30
+    env:
+      TERRITORY_PG_DSN: postgres://postgres:rahasia@127.0.0.1:5432/territory_test?sslmode=disable
+      TERRITORY_MYSQL_DSN: root@tcp(127.0.0.1:3306)/territory_test
+      TERRITORY_MARIADB_DSN: root@tcp(127.0.0.1:3307)/territory_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27'
+      - run: go test -race -count=1 ./...
+        working-directory: integration
