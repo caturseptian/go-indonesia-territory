@@ -133,8 +133,32 @@ func createdTable(stmt string, spec dialectSpec, o Options) (string, bool) {
 
 // existingTables memeriksa semua tabel skema (semua tingkat dan tambahan) ber-prefix ini, urut pembuatan.
 func existingTables(ctx context.Context, db *sql.DB, spec dialectSpec, o Options) ([]string, error) {
+	return presentTables(ctx, db, spec, o, schema())
+}
+
+// checkDatabase menolak koneksi MySQL/MariaDB tanpa database terpilih: tanpa itu katalog selalu kosong dan setiap
+// tabel tampak "belum ada".
+func checkDatabase(ctx context.Context, db *sql.DB, spec dialectSpec) error {
+	if spec.currentDBSQL == "" {
+		return nil
+	}
+	var name sql.NullString
+	if err := db.QueryRowContext(ctx, spec.currentDBSQL).Scan(&name); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if !name.Valid || name.String == "" {
+		return errors.New("sqlload: koneksi belum memilih database; sertakan nama database di DSN")
+	}
+	return nil
+}
+
+// presentTables mengembalikan tabel dari daftar yang sudah ada di database, urut daftar.
+func presentTables(ctx context.Context, db *sql.DB, spec dialectSpec, o Options, tables []table) ([]string, error) {
+	if err := checkDatabase(ctx, db, spec); err != nil {
+		return nil, err
+	}
 	var out []string
-	for _, t := range schema() {
+	for _, t := range tables {
 		name := o.Prefix + t.name
 		var one int
 		err := db.QueryRowContext(ctx, spec.existsSQL, name).Scan(&one)

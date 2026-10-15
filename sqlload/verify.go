@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -13,12 +14,13 @@ import (
 
 // requireTables memastikan semua tabel untuk Level/With ini ada sebelum isinya dibaca.
 func requireTables(ctx context.Context, db *sql.DB, spec dialectSpec, o Options) error {
-	existing, err := existingTables(ctx, db, spec, o)
+	want := selected(o)
+	existing, err := presentTables(ctx, db, spec, o, want)
 	if err != nil {
 		return err
 	}
 	var missing []string
-	for _, t := range selected(o) {
+	for _, t := range want {
 		if name := o.Prefix + t.name; !slices.Contains(existing, name) {
 			missing = append(missing, name)
 		}
@@ -54,6 +56,9 @@ func Verify(ctx context.Context, db *sql.DB, o Options) error {
 		}
 		var got string
 		err := db.QueryRowContext(ctx, "SELECT "+q("value")+" FROM "+q(o.Prefix+"meta")+" WHERE "+q("key")+" = "+spec.placeholder(1), kv[0]).Scan(&got)
+		if errors.Is(err, sql.ErrNoRows) {
+			return mismatch("meta %s tidak ada", kv[0])
+		}
 		if err != nil {
 			return fmt.Errorf("sqlload: membaca meta %s: %w", kv[0], err)
 		}

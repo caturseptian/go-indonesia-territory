@@ -23,6 +23,7 @@ type dialectSpec struct {
 	maxParams        int
 	transactionalDDL bool
 	existsSQL        string // satu parameter: nama tabel
+	currentDBSQL     string // bila diisi: database aktif harus terpilih (MySQL/MariaDB)
 	tableSuffix      string
 	typeName         func(column) string
 	boolValue        func(bool) any
@@ -59,12 +60,13 @@ func (d Dialect) spec() (dialectSpec, bool) {
 		}, true
 	case "mysql":
 		return dialectSpec{
-			quote:       func(s string) string { return "`" + s + "`" },
-			placeholder: func(int) string { return "?" },
-			maxParams:   65535,
-			existsSQL:   "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
-			tableSuffix: " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
-			typeName:    func(c column) string { return commonType(c, "JSON", "TINYINT(1)") },
+			quote:        func(s string) string { return "`" + s + "`" },
+			placeholder:  func(int) string { return "?" },
+			maxParams:    65535,
+			existsSQL:    "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
+			currentDBSQL: "SELECT DATABASE()",
+			tableSuffix:  " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+			typeName:     func(c column) string { return commonType(c, "JSON", "TINYINT(1)") },
 			boolValue: func(b bool) any {
 				if b {
 					return 1

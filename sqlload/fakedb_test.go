@@ -12,13 +12,14 @@ import (
 )
 
 // fakeDB merekam setiap pernyataan; existing berisi tabel yang dianggap sudah ada; failOn membuat pernyataan yang
-// mengandung teks itu gagal.
+// mengandung teks itu gagal; noDatabase meniru koneksi MySQL tanpa database terpilih.
 type fakeDB struct {
-	mu       sync.Mutex
-	log      []string
-	args     [][]driver.NamedValue
-	existing map[string]bool
-	failOn   string
+	mu         sync.Mutex
+	log        []string
+	args       [][]driver.NamedValue
+	existing   map[string]bool
+	failOn     string
+	noDatabase bool
 }
 
 func (f *fakeDB) record(q string, args []driver.NamedValue) error {
@@ -48,8 +49,14 @@ func (c *fakeConn) QueryContext(_ context.Context, q string, a []driver.NamedVal
 	if err := c.f.record(q, a); err != nil {
 		return nil, err
 	}
+	if q == "SELECT DATABASE()" {
+		if c.f.noDatabase {
+			return &fakeRows{n: 1, val: nil}, nil
+		}
+		return &fakeRows{n: 1, val: "territory_test"}, nil
+	}
 	if len(a) == 1 && c.f.existing[a[0].Value.(string)] {
-		return &fakeRows{n: 1}, nil
+		return &fakeRows{n: 1, val: int64(1)}, nil
 	}
 	return &fakeRows{}, nil
 }
@@ -59,7 +66,10 @@ type fakeTx struct{ f *fakeDB }
 func (t fakeTx) Commit() error   { return t.f.record("COMMIT", nil) }
 func (t fakeTx) Rollback() error { return t.f.record("ROLLBACK", nil) }
 
-type fakeRows struct{ n int }
+type fakeRows struct {
+	n   int
+	val driver.Value
+}
 
 func (r *fakeRows) Columns() []string { return []string{"x"} }
 func (r *fakeRows) Close() error      { return nil }
@@ -68,7 +78,7 @@ func (r *fakeRows) Next(dest []driver.Value) error {
 		return io.EOF
 	}
 	r.n--
-	dest[0] = int64(1)
+	dest[0] = r.val
 	return nil
 }
 
