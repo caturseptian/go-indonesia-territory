@@ -153,7 +153,7 @@ func IslandsOf(code string) ([]Island, error) {
 	if _, ok := idx[code]; !ok {
 		return nil, notFound(code)
 	}
-	var out []Island
+	out := []Island{}
 	for _, isl := range s.islands {
 		if (c.Level == LevelProvince && isl.ProvinceCode == code) || (c.Level == LevelRegency && isl.RegencyCode == code) {
 			out = append(out, isl.clone())

@@ -148,3 +148,25 @@ func TestBuildSnapshotMissingFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestIslandsOfWithoutIslandsIsEmptyNotNil(t *testing.T) {
+	ps, err := Provinces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range ps {
+		rs, err := RegenciesOf(p.Code)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range rs {
+			list, err := IslandsOf(r.Code)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if list == nil {
+				t.Fatalf("IslandsOf(%s) = nil, mau slice kosong seperti fungsi daftar lain", r.Code)
+			}
+		}
+	}
+}
