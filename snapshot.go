@@ -13,7 +13,7 @@ import (
 )
 
 type snapshot struct {
-	version       Version
+	version       VersionInfo
 	provinces     []Province
 	regencies     []Regency
 	districts     []District
@@ -45,7 +45,7 @@ func buildSnapshot(fsys fs.FS) (*snapshot, error) {
 		}
 		return rows, nil
 	}
-	s := &snapshot{version: Version{Dataset: m.DatasetVersion, EffectiveDate: m.EffectiveDate, Source: m.Source, ManifestSHA256: sum}}
+	s := &snapshot{version: VersionInfo{Dataset: m.DatasetVersion, EffectiveDate: m.EffectiveDate, Source: m.Source, ManifestSHA256: sum}}
 
 	rows, err := read("provinces")
 	if err != nil {

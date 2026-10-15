@@ -79,8 +79,8 @@ type CodeChange struct {
 	Code, OldName, NewName   string
 }
 
-// Version menjelaskan dataset tertanam.
-type Version struct {
+// VersionInfo menjelaskan dataset tertanam.
+type VersionInfo struct {
 	Dataset, EffectiveDate, Source, ManifestSHA256 string
 }
 
