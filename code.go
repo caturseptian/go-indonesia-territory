@@ -36,6 +36,9 @@ var levelRules = [...]levelRule{
 const islandPattern = "NN.NN.4NNNN"
 
 // Parse memeriksa format kode dan menentukan tingkat serta kode induknya, tanpa memeriksa keberadaan di dataset.
+// Parse hanya mengenal empat tingkat administratif (provinsi, kabupaten/kota, kecamatan, desa/kelurahan). Kode
+// pulau (NN.NN.4NNNN, mis. "11.01.40001") bukan tingkat administratif sehingga ditolak dengan ErrInvalidCode;
+// pakai IslandByCode untuk kode pulau.
 func Parse(code string) (Code, error) {
 	for i, r := range levelRules {
 		if !matchPattern(code, r.pattern) {

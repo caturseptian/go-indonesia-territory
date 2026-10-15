@@ -63,3 +63,13 @@ func FuzzParse(f *testing.F) {
 		}
 	})
 }
+
+// Kode pulau bukan tingkat administratif: Parse menolaknya, IslandByCode menerimanya (sesuai godoc Parse).
+func TestParseRejectsIslandCodeButIslandByCodeAccepts(t *testing.T) {
+	if _, err := Parse("11.01.40001"); !errors.Is(err, ErrInvalidCode) {
+		t.Fatalf("Parse kode pulau: mau ErrInvalidCode, dapat %v", err)
+	}
+	if i, err := IslandByCode("11.01.40001"); err != nil || i.Name != "Pulau Batukapal" {
+		t.Fatalf("IslandByCode: %+v %v", i, err)
+	}
+}
