@@ -12,6 +12,7 @@ import (
 // Level adalah tingkat wilayah terdalam yang dipasang; tingkat di atasnya selalu ikut.
 type Level int
 
+// Nilai Level, dari yang paling dangkal.
 const (
 	Province Level = iota + 1
 	Regency
@@ -42,10 +43,14 @@ type Options struct {
 	Replace bool   // Install: hapus tabel ber-prefix yang ada lalu pasang ulang
 }
 
+// Galat yang dikembalikan paket ini; periksa dengan errors.Is.
 var (
-	ErrInvalidOptions   = errors.New("sqlload: opsi tidak sah")
+	// ErrInvalidOptions: Options tidak sah (dialect, level, extras, atau prefix).
+	ErrInvalidOptions = errors.New("sqlload: opsi tidak sah")
+	// ErrAlreadyInstalled: Install menemukan tabel ber-prefix yang sudah ada dan Replace false.
 	ErrAlreadyInstalled = errors.New("sqlload: tabel sudah ada")
-	ErrMismatch         = errors.New("sqlload: isi database tidak cocok dengan data tertanam")
+	// ErrMismatch: Verify menemukan jumlah baris atau sampel yang berbeda dari data tertanam.
+	ErrMismatch = errors.New("sqlload: isi database tidak cocok dengan data tertanam")
 )
 
 func invalid(format string, args ...any) error {

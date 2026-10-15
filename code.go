@@ -5,11 +5,12 @@ import "fmt"
 // Level adalah tingkat wilayah administrasi.
 type Level string
 
+// Tingkat wilayah, dari yang tertinggi.
 const (
-	LevelProvince Level = "province"
-	LevelRegency  Level = "regency"
-	LevelDistrict Level = "district"
-	LevelVillage  Level = "village"
+	LevelProvince Level = "province" // kode 2 digit, mis. "31"
+	LevelRegency  Level = "regency"  // kode 5 karakter, mis. "31.71"
+	LevelDistrict Level = "district" // kode 8 karakter, mis. "31.71.01"
+	LevelVillage  Level = "village"  // kode 13 karakter, mis. "31.71.01.1001"
 )
 
 // Code adalah kode wilayah yang formatnya sah. Parent kosong untuk provinsi.

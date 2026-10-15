@@ -8,6 +8,7 @@ import (
 // Dialect memilih SQL untuk database tertentu. Nilai yang sah hanya Postgres, MySQL, dan SQLite.
 type Dialect struct{ name string }
 
+// Dialect yang didukung.
 var (
 	Postgres = Dialect{name: "postgres"}
 	MySQL    = Dialect{name: "mysql"} // juga MariaDB

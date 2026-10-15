@@ -39,11 +39,13 @@ const (
 	ChangeRenamed ChangeKind = "renamed"
 )
 
+// Province: provinsi.
 type Province struct {
 	Code, Name string
 	Spatial    Spatial
 }
 
+// Regency: kabupaten atau kota; Type membedakan keduanya.
 type Regency struct {
 	Code, ProvinceCode string
 	Type               RegencyType
@@ -51,11 +53,13 @@ type Regency struct {
 	Spatial            Spatial
 }
 
+// District: kecamatan (atau distrik di Papua).
 type District struct {
 	Code, RegencyCode, Name string
 	Spatial                 Spatial
 }
 
+// Village: desa atau kelurahan; Type membedakan keduanya.
 type Village struct {
 	Code, DistrictCode string
 	Type               VillageType
