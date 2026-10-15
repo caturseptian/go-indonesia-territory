@@ -38,7 +38,9 @@ func expect(code string, want Level) error {
 
 func notFound(code string) error { return fmt.Errorf("%w: %q", ErrNotFound, code) }
 
-func lookup[T interface{ clone() T }](code string, level Level, idx func(*snapshot) map[string]int, items func(*snapshot) []T) (T, error) {
+// lookup dan children menerima fungsi clone secara eksplisit (method expression) agar salinan terlihat jelas di
+// setiap pemanggil.
+func lookup[T any](code string, level Level, idx func(*snapshot) map[string]int, items func(*snapshot) []T, clone func(T) T) (T, error) {
 	var zero T
 	if err := expect(code, level); err != nil {
 		return zero, err
@@ -51,27 +53,27 @@ func lookup[T interface{ clone() T }](code string, level Level, idx func(*snapsh
 	if !ok {
 		return zero, notFound(code)
 	}
-	return items(s)[i].clone(), nil
+	return clone(items(s)[i]), nil
 }
 
 // ProvinceByCode mengembalikan provinsi berkode NN.
 func ProvinceByCode(code string) (Province, error) {
-	return lookup(code, LevelProvince, func(s *snapshot) map[string]int { return s.provinceIdx }, func(s *snapshot) []Province { return s.provinces })
+	return lookup(code, LevelProvince, func(s *snapshot) map[string]int { return s.provinceIdx }, func(s *snapshot) []Province { return s.provinces }, Province.clone)
 }
 
 // RegencyByCode mengembalikan kabupaten/kota berkode NN.NN.
 func RegencyByCode(code string) (Regency, error) {
-	return lookup(code, LevelRegency, func(s *snapshot) map[string]int { return s.regencyIdx }, func(s *snapshot) []Regency { return s.regencies })
+	return lookup(code, LevelRegency, func(s *snapshot) map[string]int { return s.regencyIdx }, func(s *snapshot) []Regency { return s.regencies }, Regency.clone)
 }
 
 // DistrictByCode mengembalikan kecamatan berkode NN.NN.NN.
 func DistrictByCode(code string) (District, error) {
-	return lookup(code, LevelDistrict, func(s *snapshot) map[string]int { return s.districtIdx }, func(s *snapshot) []District { return s.districts })
+	return lookup(code, LevelDistrict, func(s *snapshot) map[string]int { return s.districtIdx }, func(s *snapshot) []District { return s.districts }, District.clone)
 }
 
 // VillageByCode mengembalikan desa/kelurahan berkode NN.NN.NN.NNNN.
 func VillageByCode(code string) (Village, error) {
-	return lookup(code, LevelVillage, func(s *snapshot) map[string]int { return s.villageIdx }, func(s *snapshot) []Village { return s.villages })
+	return lookup(code, LevelVillage, func(s *snapshot) map[string]int { return s.villageIdx }, func(s *snapshot) []Village { return s.villages }, Village.clone)
 }
 
 // IslandByCode mengembalikan pulau berkode NN.NN.4NNNN.
@@ -96,10 +98,10 @@ func Provinces() ([]Province, error) {
 	if err != nil {
 		return nil, err
 	}
-	return cloneAll(s.provinces), nil
+	return cloneAll(s.provinces, Province.clone), nil
 }
 
-func children[T interface{ clone() T }](parent string, parentLevel Level, parentIdx func(*snapshot) map[string]int, items func(*snapshot) []T, code func(T) string) ([]T, error) {
+func children[T any](parent string, parentLevel Level, parentIdx func(*snapshot) map[string]int, items func(*snapshot) []T, code func(T) string, clone func(T) T) ([]T, error) {
 	if err := expect(parent, parentLevel); err != nil {
 		return nil, err
 	}
@@ -112,25 +114,25 @@ func children[T interface{ clone() T }](parent string, parentLevel Level, parent
 	}
 	all := items(s)
 	lo, hi := childRange(func(i int) string { return code(all[i]) }, len(all), parent)
-	return cloneAll(all[lo:hi]), nil
+	return cloneAll(all[lo:hi], clone), nil
 }
 
 // RegenciesOf mengembalikan kabupaten/kota dalam provinsi, urut kode.
 func RegenciesOf(provinceCode string) ([]Regency, error) {
 	return children(provinceCode, LevelProvince, func(s *snapshot) map[string]int { return s.provinceIdx },
-		func(s *snapshot) []Regency { return s.regencies }, func(r Regency) string { return r.Code })
+		func(s *snapshot) []Regency { return s.regencies }, func(r Regency) string { return r.Code }, Regency.clone)
 }
 
 // DistrictsOf mengembalikan kecamatan dalam kabupaten/kota, urut kode.
 func DistrictsOf(regencyCode string) ([]District, error) {
 	return children(regencyCode, LevelRegency, func(s *snapshot) map[string]int { return s.regencyIdx },
-		func(s *snapshot) []District { return s.districts }, func(d District) string { return d.Code })
+		func(s *snapshot) []District { return s.districts }, func(d District) string { return d.Code }, District.clone)
 }
 
 // VillagesOf mengembalikan desa/kelurahan dalam kecamatan, urut kode.
 func VillagesOf(districtCode string) ([]Village, error) {
 	return children(districtCode, LevelDistrict, func(s *snapshot) map[string]int { return s.districtIdx },
-		func(s *snapshot) []Village { return s.villages }, func(v Village) string { return v.Code })
+		func(s *snapshot) []Village { return s.villages }, func(v Village) string { return v.Code }, Village.clone)
 }
 
 // IslandsOf mengembalikan pulau dalam provinsi (termasuk yang tanpa kabupaten/kota) atau dalam kabupaten/kota, urut kode.

@@ -109,10 +109,10 @@ func (i Island) clone() Island {
 	return i
 }
 
-func cloneAll[T interface{ clone() T }](in []T) []T {
+func cloneAll[T any](in []T, clone func(T) T) []T {
 	out := make([]T, len(in))
 	for i, v := range in {
-		out[i] = v.clone()
+		out[i] = clone(v)
 	}
 	return out
 }
