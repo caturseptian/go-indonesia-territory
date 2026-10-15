@@ -11,14 +11,36 @@ import (
 	"strings"
 )
 
+// requireTables memastikan semua tabel untuk Level/With ini ada sebelum isinya dibaca.
+func requireTables(ctx context.Context, db *sql.DB, spec dialectSpec, o Options) error {
+	existing, err := existingTables(ctx, db, spec, o)
+	if err != nil {
+		return err
+	}
+	var missing []string
+	for _, t := range selected(o) {
+		if name := o.Prefix + t.name; !slices.Contains(existing, name) {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return mismatch("tabel belum terpasang: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
 func mismatch(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrMismatch, fmt.Sprintf(format, args...))
 }
 
 // Verify mencocokkan meta, jumlah baris, dan sampel baris (pertama, tengah, terakhir) dengan data tertanam.
+// Tabel yang belum terpasang (sebagian atau seluruhnya) juga dilaporkan sebagai ErrMismatch.
 func Verify(ctx context.Context, db *sql.DB, o Options) error {
 	o, spec, err := normalize(o)
 	if err != nil {
+		return err
+	}
+	if err := requireTables(ctx, db, spec, o); err != nil {
 		return err
 	}
 	d, err := loadData()
