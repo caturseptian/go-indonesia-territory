@@ -20,6 +20,12 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
+      - name: versi Go sesuai matrix dan >= go.mod
+        run: |
+          v=$(go env GOVERSION); echo "$v"
+          case "$v" in go${{ matrix.go }}.*) ;; *) echo "bukan go${{ matrix.go }}"; exit 1 ;; esac
+          min=$(awk '/^go /{print $2}' go.mod)
+          [ "$(printf '%s\n' "go$min" "$v" | sort -V | head -1)" = "go$min" ]
       - name: go.mod tanpa dependensi
         run: test -z "$(grep -E '^require|^\s+[a-z].* v[0-9]' go.mod)"
       - run: test -z "$(gofmt -l .)"
@@ -30,7 +36,7 @@ jobs:
           pct=$(go test -cover . | grep -oE '[0-9]+(\.[0-9]+)?%' | tr -d %)
           echo "cakupan paket akar: $pct%"
           awk -v p="$pct" 'BEGIN { exit !(p >= 90) }'
-      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
   integration:
     runs-on: ubuntu-latest
@@ -59,5 +65,9 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.27'
+          cache-dependency-path: integration/go.sum
+      - run: go version
+      - run: go vet ./...
+        working-directory: integration
       - run: go test -race -count=1 ./...
         working-directory: integration
