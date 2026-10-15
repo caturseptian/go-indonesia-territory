@@ -270,3 +270,29 @@ func existsSQL(d sqlload.Dialect) string {
 		return "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"
 	}
 }
+
+// Verify sebelum Install (dan setelah tabel dihapus) harus ErrMismatch di setiap dialek.
+func TestVerifyBeforeInstallIsMismatch(t *testing.T) {
+	for _, tg := range targets(t) {
+		t.Run(tg.name, func(t *testing.T) {
+			db := open(t, tg)
+			ctx := context.Background()
+			o := sqlload.Options{Dialect: tg.dialect, Level: sqlload.Village, With: sqlload.AllExtras, Prefix: uniquePrefix()}
+			q := quoteFor(tg.dialect)
+			t.Cleanup(func() { dropAll(t, db, o, q) })
+
+			if err := sqlload.Verify(ctx, db, o); !errors.Is(err, sqlload.ErrMismatch) {
+				t.Fatalf("database kosong: mau ErrMismatch, dapat %v", err)
+			}
+			if err := sqlload.Install(ctx, db, o); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec("DROP TABLE " + q(o.Prefix+"code_changes")); err != nil {
+				t.Fatal(err)
+			}
+			if err := sqlload.Verify(ctx, db, o); !errors.Is(err, sqlload.ErrMismatch) {
+				t.Fatalf("satu tabel hilang: mau ErrMismatch, dapat %v", err)
+			}
+		})
+	}
+}
