@@ -165,9 +165,12 @@ func TestIslandWithoutRegencyIsNull(t *testing.T) {
 			if err := sqlload.Install(context.Background(), db, o); err != nil {
 				t.Fatal(err)
 			}
-			var empty int
+			var empty, null int
 			if err := db.QueryRow("SELECT COUNT(*) FROM " + q(o.Prefix+"islands") + " WHERE " + q("regency_code") + " = ''").Scan(&empty); err != nil || empty != 0 {
 				t.Fatalf("regency_code kosong harus NULL: %d %v", empty, err)
+			}
+			if err := db.QueryRow("SELECT COUNT(*) FROM " + q(o.Prefix+"islands") + " WHERE " + q("regency_code") + " IS NULL").Scan(&null); err != nil || null != islandsWithoutRegency(t) {
+				t.Fatalf("pulau tanpa kabupaten/kota di DB = %d, di data = %d (%v)", null, islandsWithoutRegency(t), err)
 			}
 		})
 	}
@@ -197,5 +200,73 @@ func TestPostgresFailureLeavesNothing(t *testing.T) {
 		if err := db.QueryRow("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = $1", o.Prefix+"provinces").Scan(&n); err != nil || n != 0 {
 			t.Fatalf("tabel tersisa: %d %v", n, err)
 		}
+	}
+}
+
+// islandsWithoutRegency menghitung pulau tanpa kabupaten/kota dari API publik territory.
+func islandsWithoutRegency(t *testing.T) int {
+	t.Helper()
+	ps, err := territory.Provinces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, p := range ps {
+		list, err := territory.IslandsOf(p.Code)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, isl := range list {
+			if isl.RegencyCode == "" {
+				n++
+			}
+		}
+	}
+	if n == 0 {
+		t.Fatal("data tidak memuat pulau tanpa kabupaten/kota")
+	}
+	return n
+}
+
+// Install yang dibatalkan di tengah pengisian data tidak meninggalkan tabel apa pun, di setiap dialek
+// (Postgres/SQLite: rollback; MySQL/MariaDB: tabel yang baru dibuat dihapus lagi).
+func TestCancelledInstallLeavesNothing(t *testing.T) {
+	for _, tg := range targets(t) {
+		t.Run(tg.name, func(t *testing.T) {
+			db := open(t, tg)
+			o := sqlload.Options{Dialect: tg.dialect, Level: sqlload.Village, With: sqlload.AllExtras, Prefix: uniquePrefix()}
+			q := quoteFor(tg.dialect)
+			t.Cleanup(func() { dropAll(t, db, o, q) })
+			ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+			defer cancel()
+			if err := sqlload.Install(ctx, db, o); err == nil {
+				t.Skip("pemasangan selesai sebelum batas waktu; tidak bisa menguji pembatalan di mesin ini")
+			}
+			names, err := sqlload.Tables(sqlload.Options{Dialect: o.Dialect, Level: sqlload.Village, With: sqlload.AllExtras, Prefix: o.Prefix})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, n := range names {
+				var one int
+				err := db.QueryRow(existsSQL(tg.dialect), n).Scan(&one)
+				if err == nil {
+					t.Fatalf("tabel %s tersisa setelah Install dibatalkan", n)
+				}
+				if !errors.Is(err, sql.ErrNoRows) {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func existsSQL(d sqlload.Dialect) string {
+	switch d {
+	case sqlload.Postgres:
+		return "SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = $1"
+	case sqlload.MySQL:
+		return "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?"
+	default:
+		return "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"
 	}
 }
