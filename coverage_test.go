@@ -2,6 +2,8 @@ package territory
 
 import (
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/fstest"
 
@@ -167,6 +169,36 @@ func TestIslandsOfWithoutIslandsIsEmptyNotNil(t *testing.T) {
 			if list == nil {
 				t.Fatalf("IslandsOf(%s) = nil, mau slice kosong seperti fungsi daftar lain", r.Code)
 			}
+		}
+	}
+}
+
+// Pemuatan pertama yang bersamaan dari banyak goroutine membangun snapshot tepat sekali (pola sama dengan loadSnapshot).
+func TestConcurrentFirstUseBuildsOnce(t *testing.T) {
+	var builds atomic.Int32
+	fsys := datasettest.Build(t, validTables())
+	load := sync.OnceValues(func() (*snapshot, error) {
+		builds.Add(1)
+		return buildSnapshot(fsys)
+	})
+	results := make([]*snapshot, 64)
+	var wg sync.WaitGroup
+	for i := range results {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if s, err := load(); err == nil {
+				results[i] = s
+			}
+		}()
+	}
+	wg.Wait()
+	if builds.Load() != 1 {
+		t.Fatalf("snapshot dibangun %d kali", builds.Load())
+	}
+	for i, s := range results {
+		if s == nil || s != results[0] {
+			t.Fatalf("goroutine %d mendapat snapshot berbeda", i)
 		}
 	}
 }
