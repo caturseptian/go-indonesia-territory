@@ -30,7 +30,8 @@ c, err := territory.Parse("31.71.01.1001")         // format & level, without ch
 ```
 
 Other functions: `RegencyByCode`, `DistrictByCode`, `VillageByCode`, `IslandByCode`, `Provinces`, `RegenciesOf`,
-`DistrictsOf`, `IslandsOf`, `CodeChanges`, `Version`. Every result is a copy and ordered by code.
+`DistrictsOf`, `IslandsOf`, `CodeChanges`, `Version`. Every result is a copy and ordered by code, except
+`CodeChanges`, which follows the order of the history data.
 
 The data is embedded in the binary (about 3.6 MB) and loaded once on first use; call `territory.Load()` at startup to
 load it early. Codes must follow the Kepmendagri format exactly (`31`, `31.71`, `31.71.01`, `31.71.01.1001`); any
@@ -47,13 +48,15 @@ import (
 db, _ := sql.Open("pgx", dsn)
 opts := sqlload.Options{Dialect: sqlload.Postgres, Level: sqlload.Village, With: sqlload.AllExtras}
 err := sqlload.Install(ctx, db, opts)  // create territory_* tables and load the data
-err = sqlload.Verify(ctx, db, opts)    // compare with the embedded data
+err = sqlload.Verify(ctx, db, opts)    // compare row counts & samples with the embedded data
 ddl, _ := sqlload.DDL(opts)            // or take the SQL for your own migrations
 ```
 
 - Dialects: `sqlload.Postgres`, `sqlload.MySQL` (also MariaDB), `sqlload.SQLite`.
 - Every value is sent as a parameter; the only identifier you can set is `Prefix` (`^[a-z][a-z0-9_]{0,30}$`).
-- Existing tables are never overwritten (`ErrAlreadyInstalled`) unless `Replace: true`.
+- Existing tables are never overwritten (`ErrAlreadyInstalled`) unless `Replace: true`. `Replace` drops **every**
+  schema table with that prefix, whatever `Level`/`With` you chose, then installs again. On MySQL/MariaDB the drop
+  commits immediately, so if the reinstall fails the old tables are already gone.
 - PostgreSQL and SQLite: a single transaction. MySQL/MariaDB commit DDL implicitly, so the tables are created first
   and the data is loaded in a transaction; on failure the newly created tables are dropped again.
 

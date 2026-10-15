@@ -31,7 +31,8 @@ c, err := territory.Parse("31.71.01.1001")         // format & tingkat, tanpa ce
 ```
 
 Fungsi lain: `RegencyByCode`, `DistrictByCode`, `VillageByCode`, `IslandByCode`, `Provinces`, `RegenciesOf`,
-`DistrictsOf`, `IslandsOf`, `CodeChanges`, `Version`. Semua hasil berupa salinan dan urut kode.
+`DistrictsOf`, `IslandsOf`, `CodeChanges`, `Version`. Semua hasil berupa salinan dan urut kode, kecuali `CodeChanges`
+yang mengikuti urutan data riwayat.
 
 Data tertanam di binary (± 3,6 MB) dan dimuat sekali saat pertama dipakai; panggil `territory.Load()` saat aplikasi
 mulai untuk memuat lebih awal. Kode harus persis berformat Kepmendagri (`31`, `31.71`, `31.71.01`, `31.71.01.1001`);
@@ -48,14 +49,16 @@ import (
 db, _ := sql.Open("pgx", dsn)
 opts := sqlload.Options{Dialect: sqlload.Postgres, Level: sqlload.Village, With: sqlload.AllExtras}
 err := sqlload.Install(ctx, db, opts)  // buat tabel territory_* dan isi data
-err = sqlload.Verify(ctx, db, opts)    // cocokkan dengan data tertanam
+err = sqlload.Verify(ctx, db, opts)    // cocokkan jumlah baris & sampel dengan data tertanam
 ddl, _ := sqlload.DDL(opts)            // atau ambil SQL-nya untuk migrasi sendiri
 ```
 
 - Dialek: `sqlload.Postgres`, `sqlload.MySQL` (juga MariaDB), `sqlload.SQLite`.
 - Semua nilai dikirim sebagai parameter; satu-satunya identifier yang bisa diatur adalah `Prefix`
   (`^[a-z][a-z0-9_]{0,30}$`).
-- Tabel yang sudah ada tidak ditimpa (`ErrAlreadyInstalled`) kecuali `Replace: true`.
+- Tabel yang sudah ada tidak ditimpa (`ErrAlreadyInstalled`) kecuali `Replace: true`. `Replace` menghapus **semua**
+  tabel skema ber-prefix tersebut, apa pun `Level`/`With` yang dipilih, lalu memasang ulang. Di MySQL/MariaDB
+  penghapusan itu langsung di-commit, jadi bila pemasangan ulang gagal, tabel lama sudah tidak ada.
 - PostgreSQL dan SQLite: satu transaksi. MySQL/MariaDB meng-commit DDL otomatis, jadi tabel dibuat dulu lalu data diisi
   dalam transaksi; bila gagal, tabel yang baru dibuat dihapus lagi.
 
