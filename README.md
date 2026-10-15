@@ -36,7 +36,8 @@ yang mengikuti urutan data riwayat.
 
 Data tertanam di binary (± 3,6 MB) dan dimuat sekali saat pertama dipakai; panggil `territory.Load()` saat aplikasi
 mulai untuk memuat lebih awal. Kode harus persis berformat Kepmendagri (`31`, `31.71`, `31.71.01`, `31.71.01.1001`);
-masukan lain ditolak `ErrInvalidCode` tanpa dinormalisasi. Galat lain: `ErrWrongLevel`, `ErrNotFound`.
+masukan lain ditolak `ErrInvalidCode` tanpa dinormalisasi. Galat lain: `ErrWrongLevel`, `ErrNotFound`. `Parse` hanya
+mengenal empat tingkat administratif; kode pulau (`11.01.40001`) dicari dengan `IslandByCode`.
 
 ## Memasang ke database
 
@@ -56,6 +57,8 @@ ddl, _ := sqlload.DDL(opts)            // atau ambil SQL-nya untuk migrasi sendi
 - Dialek: `sqlload.Postgres`, `sqlload.MySQL` (juga MariaDB), `sqlload.SQLite`.
 - Semua nilai dikirim sebagai parameter; satu-satunya identifier yang bisa diatur adalah `Prefix`
   (`^[a-z][a-z0-9_]{0,30}$`).
+- `Verify` mengembalikan `ErrMismatch` bila isi berbeda **atau** tabel belum (lengkap) terpasang, jadi
+  `errors.Is(err, sqlload.ErrMismatch)` cukup untuk memutuskan pemasangan ulang.
 - Tabel yang sudah ada tidak ditimpa (`ErrAlreadyInstalled`) kecuali `Replace: true`. `Replace` menghapus **semua**
   tabel skema ber-prefix tersebut, apa pun `Level`/`With` yang dipilih, lalu memasang ulang. Di MySQL/MariaDB
   penghapusan itu langsung di-commit, jadi bila pemasangan ulang gagal, tabel lama sudah tidak ada.

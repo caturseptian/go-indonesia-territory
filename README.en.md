@@ -36,6 +36,7 @@ Other functions: `RegencyByCode`, `DistrictByCode`, `VillageByCode`, `IslandByCo
 The data is embedded in the binary (about 3.6 MB) and loaded once on first use; call `territory.Load()` at startup to
 load it early. Codes must follow the Kepmendagri format exactly (`31`, `31.71`, `31.71.01`, `31.71.01.1001`); any
 other input is rejected with `ErrInvalidCode` and is never normalised. Other errors: `ErrWrongLevel`, `ErrNotFound`.
+`Parse` only knows the four administrative levels; look up island codes (`11.01.40001`) with `IslandByCode`.
 
 ## Installing into a database
 
@@ -54,6 +55,8 @@ ddl, _ := sqlload.DDL(opts)            // or take the SQL for your own migration
 
 - Dialects: `sqlload.Postgres`, `sqlload.MySQL` (also MariaDB), `sqlload.SQLite`.
 - Every value is sent as a parameter; the only identifier you can set is `Prefix` (`^[a-z][a-z0-9_]{0,30}$`).
+- `Verify` returns `ErrMismatch` when the contents differ **or** the tables are not (fully) installed, so
+  `errors.Is(err, sqlload.ErrMismatch)` is enough to decide on a reinstall.
 - Existing tables are never overwritten (`ErrAlreadyInstalled`) unless `Replace: true`. `Replace` drops **every**
   schema table with that prefix, whatever `Level`/`With` you chose, then installs again. On MySQL/MariaDB the drop
   commits immediately, so if the reinstall fails the old tables are already gone.

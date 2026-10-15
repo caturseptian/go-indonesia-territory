@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2 - 2026-10-15
+
+- `sqlload.Verify`: database yang tabelnya belum (lengkap) terpasang kini menghasilkan `ErrMismatch` ("tabel belum
+  terpasang: …"), bukan galat driver mentah, sehingga bisa dikenali dengan `errors.Is`.
+- Godoc `Parse` menyebut bahwa kode pulau ditolak `ErrInvalidCode` dan dicari dengan `IslandByCode`.
+- Fungsi salin internal dioper secara eksplisit; staticcheck bersih dan kini dijalankan di CI.
+
 ## 1.0.1 - 2026-10-15
 
 - Modul uji `integration`: `golang.org/x/text` dinaikkan dari v0.29.0 ke v0.43.0 (GO-2026-6629, GO-2026-5970).
