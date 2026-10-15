@@ -296,3 +296,44 @@ func TestVerifyBeforeInstallIsMismatch(t *testing.T) {
 		})
 	}
 }
+
+// Tabel lengkap tetapi meta dikosongkan: Verify harus ErrMismatch di setiap dialek.
+func TestVerifyEmptyMetaIsMismatch(t *testing.T) {
+	for _, tg := range targets(t) {
+		t.Run(tg.name, func(t *testing.T) {
+			db := open(t, tg)
+			ctx := context.Background()
+			o := sqlload.Options{Dialect: tg.dialect, Level: sqlload.Regency, Prefix: uniquePrefix()}
+			q := quoteFor(tg.dialect)
+			t.Cleanup(func() { dropAll(t, db, o, q) })
+			if err := sqlload.Install(ctx, db, o); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec("DELETE FROM " + q(o.Prefix+"meta")); err != nil {
+				t.Fatal(err)
+			}
+			if err := sqlload.Verify(ctx, db, o); !errors.Is(err, sqlload.ErrMismatch) {
+				t.Fatalf("meta kosong: mau ErrMismatch, dapat %v", err)
+			}
+		})
+	}
+}
+
+// DSN MySQL/MariaDB tanpa nama database: Install dan Verify melaporkan galat konfigurasi yang jelas.
+func TestMySQLDSNWithoutDatabase(t *testing.T) {
+	for _, tg := range targets(t) {
+		if tg.dialect != sqlload.MySQL {
+			continue
+		}
+		t.Run(tg.name, func(t *testing.T) {
+			dsn := tg.dsn[:strings.LastIndex(tg.dsn, "/")+1]
+			db := open(t, target{tg.name, tg.driver, dsn, tg.dialect})
+			o := sqlload.Options{Dialect: sqlload.MySQL, Level: sqlload.Province}
+			for name, err := range map[string]error{"Verify": sqlload.Verify(context.Background(), db, o), "Install": sqlload.Install(context.Background(), db, o)} {
+				if err == nil || errors.Is(err, sqlload.ErrMismatch) || !strings.Contains(err.Error(), "belum memilih database") {
+					t.Fatalf("%s: mau galat konfigurasi, dapat %v", name, err)
+				}
+			}
+		})
+	}
+}
