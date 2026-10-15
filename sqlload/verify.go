@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -107,9 +107,9 @@ func sameValue(c column, want any, got sql.NullString) bool {
 		w, err1 := strconv.ParseFloat(fmt.Sprint(want), 64)
 		g, err2 := strconv.ParseFloat(got.String, 64)
 		return err1 == nil && err2 == nil && math.Abs(w-g) <= 0.5*math.Pow10(-c.scale)
-	case tJSON:
-		var w, g any
-		return json.Unmarshal([]byte(fmt.Sprint(want)), &w) == nil && json.Unmarshal([]byte(got.String), &g) == nil && reflect.DeepEqual(w, g)
+	case tJSON: // bbox: larik 4 angka; database bisa menulis ulang spasi/format JSON
+		var w, g []float64
+		return json.Unmarshal([]byte(fmt.Sprint(want)), &w) == nil && json.Unmarshal([]byte(got.String), &g) == nil && slices.Equal(w, g)
 	case tBool:
 		g := strings.ToLower(got.String)
 		wantTrue := fmt.Sprint(want) == "1" || fmt.Sprint(want) == "true"
