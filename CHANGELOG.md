@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 - 2026-10-15
+
+- Modul uji `integration`: `golang.org/x/text` dinaikkan dari v0.29.0 ke v0.43.0 (GO-2026-6629, GO-2026-5970).
+  Modul ini hanya untuk pengujian; paket `territory` dan `sqlload` tidak berubah dan tetap tanpa dependensi.
+
 ## 1.0.0 - 2026-10-15
 
 Rilis pertama.
